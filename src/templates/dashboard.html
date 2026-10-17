@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <p>Logged in as <strong>{{ current_user.username }}</strong> (role: {{ current_user.role }})</p>
+{% endblock %}
