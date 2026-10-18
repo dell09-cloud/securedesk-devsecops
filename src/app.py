@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -51,6 +51,19 @@ class User(UserMixin, db.Model):
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
+
+class Ticket(db.Model):
+    __tablename__ = "tickets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="open")
+    priority = db.Column(db.String(10), nullable=False, default="medium")
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
 
 @login_manager.user_loader
@@ -135,6 +148,61 @@ def logout():
 def dashboard():
     return render_template("dashboard.html")
 
+PRIORITIES = ("low", "medium", "high")
+
+
+@app.route("/tickets")
+@login_required
+def tickets():
+    my_tickets = (
+        Ticket.query.filter_by(user_id=current_user.id)
+        .order_by(Ticket.created_at.desc())
+        .all()
+    )
+    return render_template("tickets.html", tickets=my_tickets)
+
+
+@app.route("/tickets/new", methods=["GET", "POST"])
+@login_required
+def ticket_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        priority = request.form.get("priority", "medium")
+
+        error = None
+        if not 3 <= len(title) <= 100:
+            error = "Title must be 3-100 characters."
+        elif not 1 <= len(description) <= 2000:
+            error = "Description must be 1-2000 characters."
+        elif priority not in PRIORITIES:
+            error = "Choose a valid priority."
+
+        if error is None:
+            ticket = Ticket(
+                title=title,
+                description=description,
+                priority=priority,
+                user_id=current_user.id,
+            )
+            db.session.add(ticket)
+            db.session.commit()
+            flash("Ticket created.")
+            return redirect(url_for("ticket_detail", ticket_id=ticket.id))
+
+        flash(error)
+
+    return render_template("ticket_new.html")
+
+
+@app.route("/tickets/<int:ticket_id>")
+@login_required
+def ticket_detail(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    # Not found and "not yours" give the same answer, so ticket IDs can't be probed
+    if ticket is None or ticket.user_id != current_user.id:
+        abort(404)
+    return render_template("ticket_detail.html", ticket=ticket)
 
 with app.app_context():
     db.create_all()
