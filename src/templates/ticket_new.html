@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Create a ticket</h1>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p><label>Title <input name="title" maxlength="100" required></label></p>
+    <p><label>Priority
+      <select name="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </label></p>
+    <p><label>Description<br>
+      <textarea name="description" rows="6" cols="50" maxlength="2000" required></textarea>
+    </label></p>
+    <button type="submit">Submit ticket</button>
+  </form>
+{% endblock %}
