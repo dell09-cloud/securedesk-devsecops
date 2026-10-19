@@ -302,6 +302,51 @@ def ticket_delete(ticket_id):
     db.session.commit()
     flash("Ticket deleted.")
     return redirect(url_for("tickets"))
+@app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_user_delete(user_id):
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
+
+    if user.id == current_user.id:
+        flash("You cannot delete your own account.")
+    elif user.role == "admin":
+        flash("Admin accounts cannot be deleted here.")
+    else:
+        Ticket.query.filter_by(user_id=user.id).delete()
+        db.session.delete(user)
+        db.session.commit()
+        flash("User and their tickets deleted.")
+
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/tickets/<int:ticket_id>/close", methods=["POST"])
+@login_required
+@admin_required
+def admin_ticket_close(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    if ticket is None:
+        abort(404)
+    ticket.status = "closed"
+    db.session.commit()
+    flash("Ticket closed.")
+    return redirect(url_for("admin_tickets"))
+
+
+@app.route("/admin/tickets/<int:ticket_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_ticket_delete(ticket_id):
+    ticket = db.session.get(Ticket, ticket_id)
+    if ticket is None:
+        abort(404)
+    db.session.delete(ticket)
+    db.session.commit()
+    flash("Ticket deleted.")
+    return redirect(url_for("admin_tickets"))
 
 with app.app_context():
     db.create_all()
