@@ -204,6 +204,64 @@ def ticket_detail(ticket_id):
         abort(404)
     return render_template("ticket_detail.html", ticket=ticket)
 
+def get_own_ticket(ticket_id):
+    """Return the ticket only if it belongs to the logged-in user."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if ticket is None or ticket.user_id != current_user.id:
+        abort(404)
+    return ticket
+
+
+@app.route("/tickets/<int:ticket_id>/edit", methods=["GET", "POST"])
+@login_required
+def ticket_edit(ticket_id):
+    ticket = get_own_ticket(ticket_id)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        priority = request.form.get("priority", "medium")
+
+        error = None
+        if not 3 <= len(title) <= 100:
+            error = "Title must be 3-100 characters."
+        elif not 1 <= len(description) <= 2000:
+            error = "Description must be 1-2000 characters."
+        elif priority not in PRIORITIES:
+            error = "Choose a valid priority."
+
+        if error is None:
+            ticket.title = title
+            ticket.description = description
+            ticket.priority = priority
+            db.session.commit()
+            flash("Ticket updated.")
+            return redirect(url_for("ticket_detail", ticket_id=ticket.id))
+
+        flash(error)
+
+    return render_template("ticket_edit.html", ticket=ticket)
+
+
+@app.route("/tickets/<int:ticket_id>/close", methods=["POST"])
+@login_required
+def ticket_close(ticket_id):
+    ticket = get_own_ticket(ticket_id)
+    ticket.status = "closed"
+    db.session.commit()
+    flash("Ticket closed.")
+    return redirect(url_for("ticket_detail", ticket_id=ticket.id))
+
+
+@app.route("/tickets/<int:ticket_id>/delete", methods=["POST"])
+@login_required
+def ticket_delete(ticket_id):
+    ticket = get_own_ticket(ticket_id)
+    db.session.delete(ticket)
+    db.session.commit()
+    flash("Ticket deleted.")
+    return redirect(url_for("tickets"))
+
 with app.app_context():
     db.create_all()
 

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Edit ticket #{{ ticket.id }}</h1>
+  <form method="post" action="{{ url_for('ticket_edit', ticket_id=ticket.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p><label>Title
+      <input name="title" maxlength="100" value="{{ ticket.title }}" required>
+    </label></p>
+    <p><label>Priority
+      <select name="priority">
+        <option value="low" {% if ticket.priority == 'low' %}selected{% endif %}>Low</option>
+        <option value="medium" {% if ticket.priority == 'medium' %}selected{% endif %}>Medium</option>
+        <option value="high" {% if ticket.priority == 'high' %}selected{% endif %}>High</option>
+      </select>
+    </label></p>
+    <p><label>Description<br>
+      <textarea name="description" rows="6" cols="50" maxlength="2000" required>{{ ticket.description }}</textarea>
+    </label></p>
+    <button type="submit">Save changes</button>
+    <a href="{{ url_for('ticket_detail', ticket_id=ticket.id) }}">Cancel</a>
+  </form>
+{% endblock %}
