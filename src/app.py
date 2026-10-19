@@ -2,6 +2,7 @@ import os
 import re
 from datetime import datetime, timezone
 
+from functools import wraps
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
@@ -70,6 +71,14 @@ class Ticket(db.Model):
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+def admin_required(view):
+    """Allow only admins. Use it below @login_required."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if current_user.role != "admin":
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped
 
 @app.route("/")
 def home():
@@ -252,6 +261,38 @@ def ticket_close(ticket_id):
     flash("Ticket closed.")
     return redirect(url_for("ticket_detail", ticket_id=ticket.id))
 
+@app.route("/admin")
+@login_required
+@admin_required
+def admin_dashboard():
+    stats = {
+        "users": User.query.count(),
+        "tickets": Ticket.query.count(),
+        "open": Ticket.query.filter_by(status="open").count(),
+        "closed": Ticket.query.filter_by(status="closed").count(),
+    }
+    return render_template("admin_dashboard.html", stats=stats)
+
+
+@app.route("/admin/users")
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.id).all()
+    return render_template("admin_users.html", users=users)
+
+
+@app.route("/admin/tickets")
+@login_required
+@admin_required
+def admin_tickets():
+    rows = (
+        db.session.query(Ticket, User)
+        .join(User, Ticket.user_id == User.id)
+        .order_by(Ticket.created_at.desc())
+        .all()
+    )
+    return render_template("admin_tickets.html", rows=rows)
 
 @app.route("/tickets/<int:ticket_id>/delete", methods=["POST"])
 @login_required
