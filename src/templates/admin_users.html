@@ -2,7 +2,7 @@
 {% block content %}
   <h1>Users</h1>
   <table border="1" cellpadding="6">
-    <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Registered</th></tr>
+    <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Registered</th><th>Action</th></tr>
     {% for u in users %}
     <tr>
       <td>{{ u.id }}</td>
@@ -10,6 +10,14 @@
       <td>{{ u.email }}</td>
       <td>{{ u.role }}</td>
       <td>{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>
+        {% if u.role != 'admin' and u.id != current_user.id %}
+        <form method="post" action="{{ url_for('admin_user_delete', user_id=u.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">Delete user</button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </table>
