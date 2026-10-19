@@ -8,6 +8,7 @@
   <nav>
     <a href="{{ url_for('home') }}">Home</a> |
     {% if current_user.is_authenticated %}
+          {% if current_user.role == 'admin' %}<a href="{{ url_for('admin_dashboard') }}">Admin</a> |{% endif %}
           <a href="{{ url_for('tickets') }}">My tickets</a> |
       <a href="{{ url_for('dashboard') }}">Dashboard</a> |
       <form method="post" action="{{ url_for('logout') }}" style="display:inline">

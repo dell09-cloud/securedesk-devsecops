@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Admin dashboard</h1>
+  <ul>
+    <li>Total users: {{ stats.users }}</li>
+    <li>Total tickets: {{ stats.tickets }}</li>
+    <li>Open tickets: {{ stats.open }}</li>
+    <li>Closed tickets: {{ stats.closed }}</li>
+  </ul>
+  <p>
+    <a href="{{ url_for('admin_users') }}">Manage users</a> |
+    <a href="{{ url_for('admin_tickets') }}">All tickets</a>
+  </p>
+{% endblock %}
