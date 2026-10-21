@@ -2,6 +2,7 @@ import os
 import re
 from datetime import datetime, timezone
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from functools import wraps
@@ -22,17 +23,28 @@ from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 
-# Settings come from the environment; these defaults are for my laptop only
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
+# Environment: "development" on my laptop, "production" on the server
+IS_PRODUCTION = os.environ.get("APP_ENV", "development") == "production"
+
+# Settings come from the environment; defaults are for my laptop only
+secret_key = os.environ.get("SECRET_KEY")
+if IS_PRODUCTION and not secret_key:
+    raise RuntimeError("SECRET_KEY must be set in production")
+app.config["SECRET_KEY"] = secret_key or "dev-only-change-me"
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///securedesk.db"
 )
 
-# Session cookie protection
+# Session cookie protection (Secure flag needs HTTPS, so production only)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-# Secure cookies need HTTPS, so this is switched on later, on the server
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("COOKIE_SECURE") == "1"
+app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
+
+# Behind a load balancer / Nginx: read the real visitor address and protocol
+proxy_count = int(os.environ.get("PROXY_COUNT", "0"))
+if proxy_count:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count)
 
 db = SQLAlchemy(app)
 ph = PasswordHasher()
@@ -91,6 +103,24 @@ def admin_required(view):
 @app.errorhandler(429)
 def too_many_requests(error):
     return "Too many attempts. Please wait a few minutes and try again.", 429
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'; "
+        "base-uri 'self'"
+    )
+    if request.is_secure:
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
 
 @app.route("/")
 def home():
@@ -378,4 +408,4 @@ with app.app_context():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=not IS_PRODUCTION)
