@@ -2,6 +2,8 @@ import os
 import re
 from datetime import datetime, timezone
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from functools import wraps
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -35,6 +37,12 @@ app.config["SESSION_COOKIE_SECURE"] = os.environ.get("COOKIE_SECURE") == "1"
 db = SQLAlchemy(app)
 ph = PasswordHasher()
 csrf = CSRFProtect(app)
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per hour"],
+    storage_uri="memory://",
+)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -80,12 +88,17 @@ def admin_required(view):
         return view(*args, **kwargs)
     return wrapped
 
+@app.errorhandler(429)
+def too_many_requests(error):
+    return "Too many attempts. Please wait a few minutes and try again.", 429
+
 @app.route("/")
 def home():
     return render_template("home.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -122,6 +135,13 @@ def register():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
+@limiter.limit(
+    "5 per 15 minutes",
+    methods=["POST"],
+    key_func=lambda: request.form.get("username", "")[:50].lower(),
+    deduct_when=lambda response: response.status_code != 302,
+)
 def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -135,6 +155,11 @@ def login():
                 user = None
 
         if user is None:
+            app.logger.warning(
+                "Failed login for username %r from %s",
+                username[:50],
+                request.remote_addr,
+            )
             # Same message for wrong username and wrong password
             flash("Invalid username or password.")
         else:
