@@ -1,14 +1,44 @@
 {% extends "base.html" %}
+{% from "icons.html" import icon %}
 {% block content %}
-  <h1>Admin dashboard</h1>
-  <ul>
-    <li>Total users: {{ stats.users }}</li>
-    <li>Total tickets: {{ stats.tickets }}</li>
-    <li>Open tickets: {{ stats.open }}</li>
-    <li>Closed tickets: {{ stats.closed }}</li>
-  </ul>
-  <p>
-    <a href="{{ url_for('admin_users') }}">Manage users</a> |
-    <a href="{{ url_for('admin_tickets') }}">All tickets</a>
-  </p>
+  <div class="page-header">
+    <div>
+      <h1>Admin dashboard</h1>
+      <p class="subtitle">Overview of users and tickets.</p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat stat-users">
+      <span class="stat-icon">{{ icon('users') }}</span>
+      <div><span class="stat-number">{{ stats.users }}</span><span class="stat-label">Users</span></div>
+    </div>
+    <div class="stat">
+      <span class="stat-icon">{{ icon('ticket') }}</span>
+      <div><span class="stat-number">{{ stats.tickets }}</span><span class="stat-label">Total tickets</span></div>
+    </div>
+    <div class="stat stat-open">
+      <span class="stat-icon">{{ icon('clock') }}</span>
+      <div><span class="stat-number">{{ stats.open }}</span><span class="stat-label">Open</span></div>
+    </div>
+    <div class="stat stat-closed">
+      <span class="stat-icon">{{ icon('check') }}</span>
+      <div><span class="stat-number">{{ stats.closed }}</span><span class="stat-label">Closed</span></div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">{{ icon('users') }}</div>
+      <h3>Users</h3>
+      <p>See every registered account and remove users who no longer need access.</p>
+      <a class="btn" href="{{ url_for('admin_users') }}">Manage users</a>
+    </div>
+    <div class="card">
+      <div class="card-icon">{{ icon('ticket') }}</div>
+      <h3>Tickets</h3>
+      <p>Review all tickets from every user, and close or delete them.</p>
+      <a class="btn" href="{{ url_for('admin_tickets') }}">All tickets</a>
+    </div>
+  </div>
 {% endblock %}
