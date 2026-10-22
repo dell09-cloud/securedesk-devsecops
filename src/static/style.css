@@ -185,3 +185,20 @@ tr:last-child td { border-bottom: 0; }
 
 /* Empty states */
 .empty .icon { width: 56px; height: 56px; color: #94a3b8; margin-bottom: 10px; }
+
+/* Avatar */
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+
+/* How it works */
+.section-title { margin: 32px 0 16px; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.step { background: var(--card); border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.step h3 { margin: 0 0 6px; }
+.step p { margin: 0; color: var(--muted); }
+.step-number { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+
+/* Error pages */
+.error-page { text-align: center; padding: 48px 24px; }
+.error-icon { width: 84px; height: 84px; border-radius: 50%; background: #dbeafe; color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.error-icon .icon { width: 40px; height: 40px; }
+.error-code { font-size: 3rem; font-weight: 800; color: #cbd5e1; margin: 0; line-height: 1; }

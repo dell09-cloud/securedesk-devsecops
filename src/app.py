@@ -101,8 +101,42 @@ def admin_required(view):
     return wrapped
 
 @app.errorhandler(429)
+def error_page(code, title, message, icon_name):
+    page = render_template(
+        "error.html", code=code, title=title, message=message, icon_name=icon_name
+    )
+    return page, code
+
+
+@app.errorhandler(400)
+def bad_request(error):
+    return error_page(
+        400,
+        "Request not accepted",
+        "Your session may have expired. Go back, reload the page, and try again.",
+        "alert",
+    )
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return error_page(
+        403, "Access denied", "You don't have permission to open this page.", "lock"
+    )
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return error_page(
+        404, "Page not found", "We couldn't find what you were looking for.", "compass"
+    )
+
+
+@app.errorhandler(429)
 def too_many_requests(error):
-    return "Too many attempts. Please wait a few minutes and try again.", 429
+    return error_page(
+        429, "Too many attempts", "Please wait a few minutes and try again.", "alert"
+    )
 
 @app.after_request
 def set_security_headers(response):
