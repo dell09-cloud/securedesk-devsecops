@@ -13,6 +13,11 @@
 {% elif name == 'grid' %}<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
 {% elif name == 'inbox' %}<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5l1 3h6l1-3h5"/>
 {% elif name == 'logout' %}<path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="M11 12h9M16 8l4 4-4 4"/>
+{% elif name == 'lock' %}<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+{% elif name == 'alert' %}<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>
+{% elif name == 'compass' %}<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>
+{% elif name == 'user' %}<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>
+{% elif name == 'home' %}<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>
 {% endif %}
 </svg>
 {%- endmacro %}

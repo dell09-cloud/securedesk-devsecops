@@ -17,6 +17,7 @@
           {% if current_user.role == 'admin' %}<a href="{{ url_for('admin_dashboard') }}">{{ icon('shield') }}Admin</a>{% endif %}
           <a href="{{ url_for('tickets') }}">{{ icon('ticket') }}My tickets</a>
           <a href="{{ url_for('dashboard') }}">{{ icon('grid') }}Dashboard</a>
+                    <span class="avatar" title="{{ current_user.username }}">{{ current_user.username[0]|upper }}</span>
           <form method="post" action="{{ url_for('logout') }}" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="link-button">{{ icon('logout') }}Log out</button>
