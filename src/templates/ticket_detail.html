@@ -1,24 +1,35 @@
 {% extends "base.html" %}
+{% from "icons.html" import icon %}
 {% block content %}
-  <h1>Ticket #{{ ticket.id }}: {{ ticket.title }}</h1>
-  <p>Priority: {{ ticket.priority }} | Status: {{ ticket.status }}</p>
-  <p style="white-space: pre-wrap">{{ ticket.description }}</p>
-
-  <div>
-    <a href="{{ url_for('ticket_edit', ticket_id=ticket.id) }}">Edit</a>
-
-    {% if ticket.status == 'open' %}
-    <form method="post" action="{{ url_for('ticket_close', ticket_id=ticket.id) }}" style="display:inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit">Close ticket</button>
-    </form>
-    {% endif %}
-
-    <form method="post" action="{{ url_for('ticket_delete', ticket_id=ticket.id) }}" style="display:inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit">Delete ticket</button>
-    </form>
+  <div class="page-header">
+    <h1>Ticket #{{ ticket.id }}</h1>
+    <a href="{{ url_for('tickets') }}">{{ icon('back') }}Back to my tickets</a>
   </div>
 
-  <p><a href="{{ url_for('tickets') }}">Back to my tickets</a></p>
+  <div class="panel">
+    <h2>{{ ticket.title }}</h2>
+    <div class="meta">
+      <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority }} priority</span>
+      <span class="badge badge-{{ ticket.status }}">{{ icon('clock' if ticket.status == 'open' else 'check') }}{{ ticket.status }}</span>
+      <span>Created {{ ticket.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+    </div>
+
+    <p style="white-space: pre-wrap">{{ ticket.description }}</p>
+
+    <div class="actions">
+      <a class="btn btn-outline" href="{{ url_for('ticket_edit', ticket_id=ticket.id) }}">{{ icon('edit') }}Edit</a>
+
+      {% if ticket.status == 'open' %}
+      <form method="post" action="{{ url_for('ticket_close', ticket_id=ticket.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ icon('check') }}Close ticket</button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('ticket_delete', ticket_id=ticket.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-danger">{{ icon('trash') }}Delete ticket</button>
+      </form>
+    </div>
+  </div>
 {% endblock %}

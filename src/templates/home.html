@@ -1,5 +1,36 @@
 {% extends "base.html" %}
+{% from "icons.html" import icon %}
 {% block content %}
-  <h1>SecureDesk</h1>
-  <p>IT support ticket system.</p>
+  <section class="hero">
+    <div>
+      <h1>IT support, handled securely.</h1>
+      <p>Raise a ticket, follow its progress, and get help from your IT team.</p>
+      {% if current_user.is_authenticated %}
+        <a class="btn btn-light" href="{{ url_for('tickets') }}">My tickets</a>
+        <a class="btn" href="{{ url_for('ticket_new') }}">{{ icon('plus') }}Create a ticket</a>
+      {% else %}
+        <a class="btn btn-light" href="{{ url_for('register') }}">Get started</a>
+        <a class="btn" href="{{ url_for('login') }}">Log in</a>
+      {% endif %}
+    </div>
+    <div class="hero-art">{{ icon('shield') }}</div>
+  </section>
+
+  <section class="cards">
+    <div class="card">
+      <div class="card-icon">{{ icon('ticket') }}</div>
+      <h3>Raise tickets</h3>
+      <p>Describe the problem, choose a priority, and submit it in seconds.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">{{ icon('clock') }}</div>
+      <h3>Track progress</h3>
+      <p>See which of your tickets are open or closed, and update them any time.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">{{ icon('shield') }}</div>
+      <h3>Secure by design</h3>
+      <p>Hashed passwords, protected sessions, and separate access for users and admins.</p>
+    </div>
+  </section>
 {% endblock %}

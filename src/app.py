@@ -210,10 +210,16 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html")
+    mine = Ticket.query.filter_by(user_id=current_user.id)
+    counts = {
+        "total": mine.count(),
+        "open": mine.filter_by(status="open").count(),
+        "closed": mine.filter_by(status="closed").count(),
+    }
+    recent = mine.order_by(Ticket.created_at.desc()).limit(5).all()
+    return render_template("dashboard.html", counts=counts, recent=recent)
 
 PRIORITIES = ("low", "medium", "high")
-
 
 @app.route("/tickets")
 @login_required

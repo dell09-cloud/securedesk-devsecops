@@ -1,21 +1,32 @@
 {% extends "base.html" %}
+{% from "icons.html" import icon %}
 {% block content %}
-  <h1>My tickets</h1>
-  <p><a href="{{ url_for('ticket_new') }}">Create a ticket</a></p>
+  <div class="page-header">
+    <div>
+      <h1>My tickets</h1>
+      <p class="subtitle">Everything you have raised with IT support.</p>
+    </div>
+    <a class="btn" href="{{ url_for('ticket_new') }}">{{ icon('plus') }}New ticket</a>
+  </div>
+
   {% if tickets %}
-    <table border="1" cellpadding="6">
+    <table>
       <tr><th>ID</th><th>Title</th><th>Priority</th><th>Status</th><th>Created</th></tr>
       {% for t in tickets %}
       <tr>
-        <td>{{ t.id }}</td>
+        <td>#{{ t.id }}</td>
         <td><a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">{{ t.title }}</a></td>
-        <td>{{ t.priority }}</td>
-        <td>{{ t.status }}</td>
-        <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
+        <td><span class="badge badge-{{ t.status }}">{{ icon('clock' if t.status == 'open' else 'check') }}{{ t.status }}</span></td>
+        <td>{{ t.created_at.strftime('%d %b %Y, %H:%M') }}</td>
       </tr>
       {% endfor %}
     </table>
   {% else %}
-    <p>You have no tickets yet.</p>
+    <div class="panel empty">
+      {{ icon('inbox') }}
+      <p>You have no tickets yet.</p>
+      <a class="btn" href="{{ url_for('ticket_new') }}">Create your first ticket</a>
+    </div>
   {% endif %}
 {% endblock %}
