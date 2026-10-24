@@ -32,9 +32,16 @@ if IS_PRODUCTION and not secret_key:
     raise RuntimeError("SECRET_KEY must be set in production")
 app.config["SECRET_KEY"] = secret_key or "dev-only-change-me"
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///securedesk.db"
-)
+database_url = os.environ.get("DATABASE_URL")
+if IS_PRODUCTION and not database_url:
+    raise RuntimeError("DATABASE_URL must be set in production")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///securedesk.db"
+
+# Keep database connections healthy (RDS can close idle connections)
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+}
 
 # Session cookie protection (Secure flag needs HTTPS, so production only)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
