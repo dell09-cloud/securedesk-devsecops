@@ -2,7 +2,7 @@
 {% block content %}
   <h1>All tickets</h1>
   <table border="1" cellpadding="6">
-    <tr><th>ID</th><th>Title</th><th>Owner</th><th>Priority</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+    <tr><th>ID</th><th>Title</th><th>Owner</th><th>Priority</th><th>Status</th><th>Created</th><th>File</th></th><th>Actions</th></th></tr>
     {% for t, u in rows %}
     <tr>
       <td>{{ t.id }}</td>
@@ -11,6 +11,7 @@
       <td>{{ t.priority }}</td>
       <td>{{ t.status }}</td>
       <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{% if t.attachments %}<a href="{{ url_for('ticket_attachment', ticket_id=t.id) }}">View file</a>{% endif %}</td>
       <td>
         {% if t.status == 'open' %}
         <form method="post" action="{{ url_for('admin_ticket_close', ticket_id=t.id) }}" style="display:inline">

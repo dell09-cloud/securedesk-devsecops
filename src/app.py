@@ -1,14 +1,24 @@
 import os
 import re
+import uuid
 from datetime import datetime, timezone
-
-from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from functools import wraps
+
+import boto3
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    Response,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -20,9 +30,14 @@ from flask_login import (
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.exc import IntegrityError
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
 # Environment: "development" on my laptop, "production" on the server
 IS_PRODUCTION = os.environ.get("APP_ENV", "development") == "production"
 
@@ -53,9 +68,33 @@ proxy_count = int(os.environ.get("PROXY_COUNT", "0"))
 if proxy_count:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count)
 
+# File uploads
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB limit
+MEDIA_BUCKET = os.environ.get("S3_MEDIA_BUCKET")
+AWS_REGION = os.environ.get("AWS_REGION", "ap-south-1")
+if IS_PRODUCTION and not MEDIA_BUCKET:
+    raise RuntimeError("S3_MEDIA_BUCKET must be set in production")
+UPLOAD_DIR = os.path.join(app.instance_path, "uploads")  # local testing only
+
+# Allowed types: extension -> (content type, first bytes the file must start with)
+ALLOWED_TYPES = {
+    "png": ("image/png", b"\x89PNG\r\n\x1a\n"),
+    "jpg": ("image/jpeg", b"\xff\xd8\xff"),
+    "jpeg": ("image/jpeg", b"\xff\xd8\xff"),
+    "pdf": ("application/pdf", b"%PDF-"),
+    "txt": ("text/plain", None),
+}
+INLINE_TYPES = {"image/png", "image/jpeg"}
+
+PRIORITIES = ("low", "medium", "high")
+
+# ---------------------------------------------------------------------------
+# Extensions
+# ---------------------------------------------------------------------------
 db = SQLAlchemy(app)
 ph = PasswordHasher()
 csrf = CSRFProtect(app)
+
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
@@ -68,6 +107,9 @@ login_manager.login_view = "login"
 login_manager.login_message = "Please log in to see that page."
 
 
+# ---------------------------------------------------------------------------
+# Database models
+# ---------------------------------------------------------------------------
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
@@ -79,6 +121,7 @@ class User(UserMixin, db.Model):
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
+
 
 class Ticket(db.Model):
     __tablename__ = "tickets"
@@ -92,22 +135,116 @@ class Ticket(db.Model):
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    attachments = db.relationship(
+        "Attachment", backref="ticket", cascade="all, delete-orphan"
+    )
 
 
+class Attachment(db.Model):
+    __tablename__ = "attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey("tickets.id"), nullable=False)
+    original_name = db.Column(db.String(255), nullable=False)
+    stored_key = db.Column(db.String(255), unique=True, nullable=False)
+    content_type = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    uploaded_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+
+
+# ---------------------------------------------------------------------------
+# File storage helpers (S3 in production, a local folder while developing)
+# ---------------------------------------------------------------------------
+_s3_client = None
+
+
+def s3():
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client("s3", region_name=AWS_REGION)
+    return _s3_client
+
+
+def validate_upload(file):
+    """Check an uploaded file; return (name, extension, content type, bytes)."""
+    filename = secure_filename(file.filename or "")
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_TYPES:
+        raise ValueError("Allowed file types: png, jpg, pdf, txt.")
+    data = file.read()
+    if not data:
+        raise ValueError("The file is empty.")
+    content_type, signature = ALLOWED_TYPES[ext]
+    if signature and not data.startswith(signature):
+        raise ValueError("The file content does not match its type.")
+    if ext == "txt" and b"\x00" in data:
+        raise ValueError("The file content does not match its type.")
+    return filename, ext, content_type, data
+
+
+def store_file(key, data, content_type):
+    if MEDIA_BUCKET:
+        s3().put_object(
+            Bucket=MEDIA_BUCKET, Key=key, Body=data, ContentType=content_type
+        )
+    else:
+        path = os.path.join(UPLOAD_DIR, key)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(data)
+
+
+def load_file(key):
+    if MEDIA_BUCKET:
+        return s3().get_object(Bucket=MEDIA_BUCKET, Key=key)["Body"].read()
+    with open(os.path.join(UPLOAD_DIR, key), "rb") as f:
+        return f.read()
+
+
+def remove_files(keys):
+    for key in keys:
+        try:
+            if MEDIA_BUCKET:
+                s3().delete_object(Bucket=MEDIA_BUCKET, Key=key)
+            else:
+                os.remove(os.path.join(UPLOAD_DIR, key))
+        except Exception:
+            app.logger.warning("Could not remove stored file %r", key)
+
+
+# ---------------------------------------------------------------------------
+# Login helpers
+# ---------------------------------------------------------------------------
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+
 def admin_required(view):
     """Allow only admins. Use it below @login_required."""
+
     @wraps(view)
     def wrapped(*args, **kwargs):
         if current_user.role != "admin":
             abort(403)
         return view(*args, **kwargs)
+
     return wrapped
 
-@app.errorhandler(429)
+
+def get_own_ticket(ticket_id):
+    """Return the ticket only if it belongs to the logged-in user."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if ticket is None or ticket.user_id != current_user.id:
+        abort(404)
+    return ticket
+
+
+# ---------------------------------------------------------------------------
+# Error pages
+# ---------------------------------------------------------------------------
 def error_page(code, title, message, icon_name):
     page = render_template(
         "error.html", code=code, title=title, message=message, icon_name=icon_name
@@ -139,12 +276,21 @@ def not_found(error):
     )
 
 
+@app.errorhandler(413)
+def too_large(error):
+    return error_page(413, "File too large", "Attachments can be up to 5 MB.", "alert")
+
+
 @app.errorhandler(429)
 def too_many_requests(error):
     return error_page(
         429, "Too many attempts", "Please wait a few minutes and try again.", "alert"
     )
 
+
+# ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
 @app.after_request
 def set_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -163,6 +309,10 @@ def set_security_headers(response):
         )
     return response
 
+
+# ---------------------------------------------------------------------------
+# Public and account pages
+# ---------------------------------------------------------------------------
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -260,8 +410,10 @@ def dashboard():
     recent = mine.order_by(Ticket.created_at.desc()).limit(5).all()
     return render_template("dashboard.html", counts=counts, recent=recent)
 
-PRIORITIES = ("low", "medium", "high")
 
+# ---------------------------------------------------------------------------
+# Tickets
+# ---------------------------------------------------------------------------
 @app.route("/tickets")
 @login_required
 def tickets():
@@ -280,14 +432,21 @@ def ticket_new():
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
         priority = request.form.get("priority", "medium")
+        upload = request.files.get("attachment")
 
         error = None
+        file_info = None
         if not 3 <= len(title) <= 100:
             error = "Title must be 3-100 characters."
         elif not 1 <= len(description) <= 2000:
             error = "Description must be 1-2000 characters."
         elif priority not in PRIORITIES:
             error = "Choose a valid priority."
+        elif upload and upload.filename:
+            try:
+                file_info = validate_upload(upload)
+            except ValueError as exc:
+                error = str(exc)
 
         if error is None:
             ticket = Ticket(
@@ -297,6 +456,28 @@ def ticket_new():
                 user_id=current_user.id,
             )
             db.session.add(ticket)
+            db.session.flush()  # gives the ticket its ID
+
+            if file_info:
+                filename, ext, content_type, data = file_info
+                key = f"tickets/{ticket.id}/{uuid.uuid4().hex}.{ext}"
+                try:
+                    store_file(key, data, content_type)
+                except Exception:
+                    db.session.rollback()
+                    app.logger.exception("Could not store attachment")
+                    flash("The file could not be saved. Please try again.")
+                    return render_template("ticket_new.html")
+                db.session.add(
+                    Attachment(
+                        ticket_id=ticket.id,
+                        original_name=filename,
+                        stored_key=key,
+                        content_type=content_type,
+                        size=len(data),
+                    )
+                )
+
             db.session.commit()
             flash("Ticket created.")
             return redirect(url_for("ticket_detail", ticket_id=ticket.id))
@@ -315,12 +496,30 @@ def ticket_detail(ticket_id):
         abort(404)
     return render_template("ticket_detail.html", ticket=ticket)
 
-def get_own_ticket(ticket_id):
-    """Return the ticket only if it belongs to the logged-in user."""
+
+@app.route("/tickets/<int:ticket_id>/attachment")
+@login_required
+def ticket_attachment(ticket_id):
     ticket = db.session.get(Ticket, ticket_id)
-    if ticket is None or ticket.user_id != current_user.id:
+    if ticket is None or not ticket.attachments:
         abort(404)
-    return ticket
+    if ticket.user_id != current_user.id and current_user.role != "admin":
+        abort(404)
+
+    attachment = ticket.attachments[0]
+    try:
+        data = load_file(attachment.stored_key)
+    except Exception:
+        app.logger.exception("Could not read stored file")
+        abort(404)
+
+    disposition = "inline" if attachment.content_type in INLINE_TYPES else "attachment"
+    response = Response(data, mimetype=attachment.content_type)
+    response.headers["Content-Disposition"] = (
+        f'{disposition}; filename="{attachment.original_name}"'
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/tickets/<int:ticket_id>/edit", methods=["GET", "POST"])
@@ -363,6 +562,22 @@ def ticket_close(ticket_id):
     flash("Ticket closed.")
     return redirect(url_for("ticket_detail", ticket_id=ticket.id))
 
+
+@app.route("/tickets/<int:ticket_id>/delete", methods=["POST"])
+@login_required
+def ticket_delete(ticket_id):
+    ticket = get_own_ticket(ticket_id)
+    keys = [a.stored_key for a in ticket.attachments]
+    db.session.delete(ticket)
+    db.session.commit()
+    remove_files(keys)
+    flash("Ticket deleted.")
+    return redirect(url_for("tickets"))
+
+
+# ---------------------------------------------------------------------------
+# Admin pages
+# ---------------------------------------------------------------------------
 @app.route("/admin")
 @login_required
 @admin_required
@@ -396,14 +611,7 @@ def admin_tickets():
     )
     return render_template("admin_tickets.html", rows=rows)
 
-@app.route("/tickets/<int:ticket_id>/delete", methods=["POST"])
-@login_required
-def ticket_delete(ticket_id):
-    ticket = get_own_ticket(ticket_id)
-    db.session.delete(ticket)
-    db.session.commit()
-    flash("Ticket deleted.")
-    return redirect(url_for("tickets"))
+
 @app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
 @login_required
 @admin_required
@@ -417,9 +625,13 @@ def admin_user_delete(user_id):
     elif user.role == "admin":
         flash("Admin accounts cannot be deleted here.")
     else:
-        Ticket.query.filter_by(user_id=user.id).delete()
+        keys = []
+        for t in Ticket.query.filter_by(user_id=user.id).all():
+            keys += [a.stored_key for a in t.attachments]
+            db.session.delete(t)
         db.session.delete(user)
         db.session.commit()
+        remove_files(keys)
         flash("User and their tickets deleted.")
 
     return redirect(url_for("admin_users"))
@@ -445,14 +657,23 @@ def admin_ticket_delete(ticket_id):
     ticket = db.session.get(Ticket, ticket_id)
     if ticket is None:
         abort(404)
+    keys = [a.stored_key for a in ticket.attachments]
     db.session.delete(ticket)
     db.session.commit()
+    remove_files(keys)
     flash("Ticket deleted.")
     return redirect(url_for("admin_tickets"))
 
+
+# ---------------------------------------------------------------------------
+# Start-up
+# ---------------------------------------------------------------------------
 with app.app_context():
     db.create_all()
 
 
 if __name__ == "__main__":
-    app.run(debug=not IS_PRODUCTION)
+    app.run(
+        host=os.environ.get("APP_HOST", "127.0.0.1"),
+        debug=not IS_PRODUCTION and os.environ.get("APP_HOST") is None,
+    )

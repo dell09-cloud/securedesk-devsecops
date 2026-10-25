@@ -16,6 +16,17 @@
 
     <p style="white-space: pre-wrap">{{ ticket.description }}</p>
 
+    {% if ticket.attachments %}
+    {% set att = ticket.attachments[0] %}
+    <div class="attachment">
+      <h3>Attachment</h3>
+      {% if att.content_type in ['image/png', 'image/jpeg'] %}
+        <p><img class="attachment-img" src="{{ url_for('ticket_attachment', ticket_id=ticket.id) }}" alt="{{ att.original_name }}"></p>
+      {% endif %}
+      <p>{{ icon('paperclip') }}<a href="{{ url_for('ticket_attachment', ticket_id=ticket.id) }}">{{ att.original_name }}</a> ({{ (att.size / 1024)|round(1) }} KB)</p>
+    </div>
+    {% endif %}
+
     <div class="actions">
       <a class="btn btn-outline" href="{{ url_for('ticket_edit', ticket_id=ticket.id) }}">{{ icon('edit') }}Edit</a>
 

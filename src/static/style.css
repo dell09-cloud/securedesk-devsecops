@@ -202,3 +202,7 @@ tr:last-child td { border-bottom: 0; }
 .error-icon { width: 84px; height: 84px; border-radius: 50%; background: #dbeafe; color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
 .error-icon .icon { width: 40px; height: 40px; }
 .error-code { font-size: 3rem; font-weight: 800; color: #cbd5e1; margin: 0; line-height: 1; }
+/* Attachments */
+.attachment { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.attachment h3 { margin: 0 0 10px; }
+.attachment-img { max-width: 100%; max-height: 360px; border-radius: 8px; border: 1px solid var(--border); }
