@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   <h1>Create a ticket</h1>
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p><label>Title <input name="title" maxlength="100" required></label></p>
     <p><label>Priority
@@ -12,7 +12,10 @@
       </select>
     </label></p>
     <p><label>Description<br>
-      <textarea name="description" rows="6" cols="50" maxlength="2000" required></textarea>
+      <textarea name="description" rows="6" maxlength="2000" required></textarea>
+    </label></p>
+    <p><label>Attachment (optional: png, jpg, pdf or txt, up to 5 MB)
+      <input type="file" name="attachment" accept=".png,.jpg,.jpeg,.pdf,.txt">
     </label></p>
     <button type="submit">Submit ticket</button>
   </form>
