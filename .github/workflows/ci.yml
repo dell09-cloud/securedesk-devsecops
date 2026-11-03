@@ -1,0 +1,31 @@
+name: SecureDesk CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Check Python syntax
+        run: python -m compileall -q src
+
+      - name: Build Docker image
+        run: docker build -t securedesk:ci .
