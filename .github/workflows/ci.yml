@@ -1,4 +1,5 @@
-name: SecureDesk CI
+
+name: SecureDesk CI/CD
 
 on:
   push:
@@ -29,3 +30,33 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t securedesk:ci .
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: build-and-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify SSM deployment access
+        run: |
+          aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=${{ vars.EC2_INSTANCE_ID }}"
+
+      - name: Check EC2 deployment readiness
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["echo SecureDesk deployment connection successful","sudo docker --version","sudo systemctl is-active securedesk"]' \
+            --comment "SecureDesk deployment readiness check"
