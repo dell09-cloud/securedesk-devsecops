@@ -119,6 +119,6 @@ GitHub: https://github.com/dell09-cloud/securedesk-devsecops
 
 The objective of SecureDesk is to demonstrate how a web application can be deployed and managed using AWS cloud infrastructure and DevSecOps practices, with a focus on security, automation, monitoring, and backup and recovery.
 
-                                      ---
+---
                                       
 **Developed as a DevSecOps Capstone Project**
