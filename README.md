@@ -34,7 +34,7 @@ This project demonstrates the implementation of cloud hosting, application secur
 
 ## AWS Architecture
 
-![SecureDesk AWS Architecture](docs/securedesk_architecture.png)
+![SecureDesk AWS Architecture](docs/securedesk_diagram.png)
 
 The application uses the following AWS services:
 
