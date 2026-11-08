@@ -6,6 +6,10 @@ SecureDesk is a cloud-based IT Support Ticket System developed using Python Flas
 
 This project demonstrates the implementation of cloud hosting, application security, backup and recovery, monitoring, and DevSecOps automation.
 
+## Project Documentation
+
+📄 [View SecureDesk DevSecOps Capstone Project Report (PDF)](docs/DevSecOps%20Capstone%E2%80%93Project%20Report.pdf)
+
 ## Live Application
 
 **Application URL:** https://d39qz29rzn1p6r.cloudfront.net
