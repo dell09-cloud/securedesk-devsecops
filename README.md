@@ -10,6 +10,10 @@ This project demonstrates the implementation of cloud hosting, application secur
 
 📄 [View SecureDesk DevSecOps Capstone Project Report (PDF)](docs/DevSecOps%20Capstone%E2%80%93Project%20Report.pdf)
 
+## Project Demonstration
+
+🎥 [Watch SecureDesk Project Demo](docs/SecureDesk_Project_Demo.mp4)
+
 ## Live Application
 
 **Application URL:** https://d39qz29rzn1p6r.cloudfront.net
