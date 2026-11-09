@@ -14,6 +14,8 @@ This project demonstrates the implementation of cloud hosting, application secur
 
 🎥 [Watch SecureDesk Project Demo](docs/Securedesk_Project_demo.mp4)
 
+*Note: The demo video can be downloaded and viewed locally if GitHub preview is unavailable.*
+
 ## Live Application
 
 **Application URL:** https://d39qz29rzn1p6r.cloudfront.net
