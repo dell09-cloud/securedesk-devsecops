@@ -12,7 +12,7 @@ This project demonstrates the implementation of cloud hosting, application secur
 
 ## Project Demonstration
 
-🎥 [Watch SecureDesk Project Demo](docs/SecureDesk_Project_demo.mp4)
+🎥 [Watch SecureDesk Project Demo](docs/Securedesk_Project_demo.mp4)
 
 ## Live Application
 
